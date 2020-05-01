@@ -5,18 +5,19 @@ Ian Chiswell and Wilfrid Hodges.
 
 {-# OPTIONS --safe #-}
 
+open import Agda.Builtin.Sigma using (_,_)
 open import Level using (0ℓ)
 open import Data.Bool using (Bool; false; true; _≟_; not; _∧_; _∨_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin; zero; suc; fromℕ<)
-open import Data.Nat using (ℕ; suc; _<_; z≤n; s≤s)
-open import Data.Product using (∃-syntax; _×_; _,′_)
+open import Data.Nat using (ℕ; suc; _<_; _<?_; _>_; _>?_; z≤n; s≤s)
+open import Data.Product using (_×_; proj₁; proj₂; _,′_)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using (_∘_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Relation.Nullary using (yes; no)
-open import Relation.Unary using (Pred; ∅; _∪_; _⊆_) renaming (｛_｝ to ⟦_⟧)
+open import Relation.Unary using (Pred; Decidable; ∅; _∪_; _⊆_) renaming (｛_｝ to ⟦_⟧)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans)
 open import Relation.Binary using (Rel; Reflexive; Symmetric; Transitive)
 open import Relation.Binary.Structures using (IsEquivalence)
@@ -268,3 +269,67 @@ Theorem 3.6.4
     ; sym = λ x~y A′ → sym (x~y A′)
     ; trans = λ x~y y~z A′ → trans (x~y A′) (y~z A′)
     }
+
+-- TODO: maybe take a term in LP σ to a term in LP τ?
+
+{-
+Definition 3.7.1
+-}
+Substitution : (σ : Signature) → (τ : Signature) → Decidable τ → τ ⊆ σ → Set
+Substitution σ τ _ _ = (p : ℕ) → p ∈ τ → LP σ
+
+subst : ∀ {σ τ} (is-in : Decidable τ) (τ⊆σ : τ ⊆ σ) → LP σ → Substitution σ τ (is-in) (τ⊆σ) → LP σ
+subst _ _ ⊥′ S = ⊥′
+subst is-in τ⊆σ (var p {p₁}) S with is-in p
+... | yes prf = S p prf
+... | no _ = var p {p₁}
+subst is-in τ⊆σ (¬′ ϕ) S = ¬′ (subst is-in τ⊆σ ϕ S )
+subst is-in τ⊆σ (ϕ₁ ∧′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ∧′ subst is-in τ⊆σ ϕ₂ S
+subst is-in τ⊆σ (ϕ₁ ∨′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ∨′ subst is-in τ⊆σ ϕ₂ S
+subst is-in τ⊆σ (ϕ₁ →′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S →′ subst is-in τ⊆σ ϕ₂ S
+subst is-in τ⊆σ (ϕ₁ ↔′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ↔′ subst is-in τ⊆σ ϕ₂ S
+
+module example-3-7-2 where
+  σ : Signature
+  σ = λ k → k < 4
+
+  τ : Signature
+  τ = λ k → k > 0 × k < 4
+
+  σ-dec : Decidable σ
+  σ-dec p = p <? 4
+
+  τ-dec : Decidable τ
+  τ-dec p with p >? 0 | p <? 4
+  ... | yes prf₁ | yes prf₂ = yes (prf₁ , prf₂)
+  ... | no prf₁  | yes prf₂ = no (λ z → prf₁ (proj₁ z))
+  ... | yes prf₁ | no prf₂ = no (λ z → prf₂ (proj₂ z))
+  ... | no prf₁  | no prf₂ = no (λ z → prf₂ (proj₂ z))
+
+  p₀ p₁ p₂ p₃ : LP σ
+  p₀ = var 0 {s≤s z≤n}
+  p₁ = var 1 {s≤s (s≤s z≤n)}
+  p₂ = var 2 {s≤s (s≤s (s≤s z≤n))}
+  p₃ = var 3 {s≤s (s≤s (s≤s (s≤s z≤n)))}
+
+  ϕ : LP σ
+  ϕ = (p₁ →′ (p₂ ∧′ (¬′ p₃))) ↔′ p₃
+
+  ψ₁ ψ₂ ψ₃ : LP σ
+  ψ₁ = ¬′ (¬′ p₃)
+  ψ₂ = p₀
+  ψ₃ = p₁ →′ p₂
+
+  S : Substitution σ τ τ-dec proj₂
+  S 0 ()
+  S (suc 0) _ = ψ₁
+  S (suc (suc 0)) _ = ψ₂
+  S (suc (suc (suc 0))) _ = ψ₃
+  S (suc (suc (suc (suc _)))) (_ , s≤s (s≤s (s≤s (s≤s ()))))
+
+  ϕ′ : LP σ
+  ϕ′ = subst τ-dec proj₂ ϕ S
+
+  _ : ϕ′ ≡ (((¬′ (¬′ p₃)) →′ (p₀ ∧′ (¬′ (p₁ →′ p₂)))) ↔′
+              (p₁ →′ p₂))
+  _ = refl
