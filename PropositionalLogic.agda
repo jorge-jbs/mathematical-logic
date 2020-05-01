@@ -275,19 +275,19 @@ Theorem 3.6.4
 {-
 Definition 3.7.1
 -}
-Substitution : (σ : Signature) → (τ : Signature) → Decidable τ → τ ⊆ σ → Set
-Substitution σ τ _ _ = (p : ℕ) → p ∈ τ → LP σ
+Substitution : (σ : Signature) → (τ : Signature) → Set
+Substitution σ τ = Decidable τ × τ ⊆ σ × ((p : ℕ) → p ∈ τ → LP σ)
 
-subst : ∀ {σ τ} (is-in : Decidable τ) (τ⊆σ : τ ⊆ σ) → LP σ → Substitution σ τ (is-in) (τ⊆σ) → LP σ
-subst _ _ ⊥′ S = ⊥′
-subst is-in τ⊆σ (var p {p₁}) S with is-in p
-... | yes prf = S p prf
-... | no _ = var p {p₁}
-subst is-in τ⊆σ (¬′ ϕ) S = ¬′ (subst is-in τ⊆σ ϕ S )
-subst is-in τ⊆σ (ϕ₁ ∧′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ∧′ subst is-in τ⊆σ ϕ₂ S
-subst is-in τ⊆σ (ϕ₁ ∨′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ∨′ subst is-in τ⊆σ ϕ₂ S
-subst is-in τ⊆σ (ϕ₁ →′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S →′ subst is-in τ⊆σ ϕ₂ S
-subst is-in τ⊆σ (ϕ₁ ↔′ ϕ₂) S = subst is-in τ⊆σ ϕ₁ S ↔′ subst is-in τ⊆σ ϕ₂ S
+_[_] : ∀ {σ τ} → LP σ → Substitution σ τ → LP σ
+⊥′ [ S ] = ⊥′
+(var p {p∈σ}) [ (dec , _ , f) ] with dec p
+... | yes p∈τ = f p p∈τ
+... | no _ = var p {p∈σ}
+(¬′ ϕ) [ S ] = ¬′ (ϕ [ S ] )
+(ϕ₁ ∧′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∧′ (ϕ₂ [ S ])
+(ϕ₁ ∨′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∨′ (ϕ₂ [ S ])
+(ϕ₁ →′ ϕ₂) [ S ] = (ϕ₁ [ S ]) →′ (ϕ₂ [ S ])
+(ϕ₁ ↔′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ↔′ (ϕ₂ [ S ])
 
 module example-3-7-2 where
   σ : Signature
@@ -320,15 +320,18 @@ module example-3-7-2 where
   ψ₂ = p₀
   ψ₃ = p₁ →′ p₂
 
-  S : Substitution σ τ τ-dec proj₂
-  S 0 ()
-  S (suc 0) _ = ψ₁
-  S (suc (suc 0)) _ = ψ₂
-  S (suc (suc (suc 0))) _ = ψ₃
-  S (suc (suc (suc (suc _)))) (_ , s≤s (s≤s (s≤s (s≤s ()))))
+  f : (p : ℕ) → p ∈ τ → LP σ
+  f 0 ()
+  f (suc 0) _ = ψ₁
+  f (suc (suc 0)) _ = ψ₂
+  f (suc (suc (suc 0))) _ = ψ₃
+  f (suc (suc (suc (suc _)))) (_ , s≤s (s≤s (s≤s (s≤s ()))))
+
+  S : Substitution σ τ
+  S = τ-dec , proj₂ , f
 
   ϕ′ : LP σ
-  ϕ′ = subst τ-dec proj₂ ϕ S
+  ϕ′ = ϕ [ S ]
 
   _ : ϕ′ ≡ (((¬′ (¬′ p₃)) →′ (p₀ ∧′ (¬′ (p₁ →′ p₂)))) ↔′
               (p₁ →′ p₂))
