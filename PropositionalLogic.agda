@@ -12,6 +12,7 @@ open import Data.Fin using (Fin; zero; suc; fromℕ<)
 open import Data.Nat using (ℕ; suc; _<_; z≤n; s≤s)
 open import Data.Product using (∃-syntax; _×_; _,′_)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Function using (_∘_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Relation.Nullary using (yes; no)
@@ -216,9 +217,8 @@ module lemma-3-6-1 {σ} (ϕ ψ : LP σ) where
   Lemma = I ⇔ II × II ⇔ III
 
   ¬t→f : ∀ {b : Bool} → b ≢ true → b ≡ false
-  ¬t→f {b} prf with b
-  ... | true = ⊥-elim (prf refl)
-  ... | false = refl
+  ¬t→f {true} prf = ⊥-elim (prf refl)
+  ¬t→f {false} _ = refl
 
   i→ii : I → II
   i→ii i-prf A′ with A′ * ϕ ≟ true | A′ * ψ ≟ true
@@ -232,14 +232,17 @@ module lemma-3-6-1 {σ} (ϕ ψ : LP σ) where
       rewrite ϕ-true with Equivalence.to (i-prf A′) ⟨$⟩ ϕ-true
   i→ii i-prf A′ | yes ϕ-true | no _       | prf = sym prf
 
-  ii→i : II → I
-  ii→i = {!!}
-
   ii→iii : II → III
   ii→iii = {!!}
 
+  iii→i : III → I
+  iii→i = {!!}
+
+  ii→i : II → I
+  ii→i = iii→i ∘ ii→iii
+
   iii→ii : III → II
-  iii→ii = {!!}
+  iii→ii = i→ii ∘ iii→i
 
   proof : Lemma
   proof = equivalence i→ii ii→i ,′ equivalence ii→iii iii→ii
