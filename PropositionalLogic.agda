@@ -18,7 +18,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Relation.Nullary using (yes; no)
 open import Relation.Unary using (Pred; Decidable; ∅; _∪_; _⊆_) renaming (｛_｝ to ⟦_⟧)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans; cong; cong₂)
 open import Relation.Binary using (Rel; Reflexive; Symmetric; Transitive)
 open import Relation.Binary.Structures using (IsEquivalence)
 
@@ -155,23 +155,26 @@ FiniteStructure n = Structure (λ k → k < n)
 build-fin-struct : ∀ {n} → (Fin n → Bool) → FiniteStructure n
 build-fin-struct f p {prf} = f (fromℕ< prf)
 
+_⇒b_ : Bool → Bool → Bool
+true ⇒b true = true
+true ⇒b false = false
+false ⇒b true = true
+false ⇒b false = true
+
+_⇔b_ : Bool → Bool → Bool
+true ⇔b true = true
+false ⇔b false = true
+true ⇔b false = false
+false ⇔b true = false
+
 _*_ : ∀ {σ} → Structure σ → LP σ → Bool
 f * ⊥′ = false
 f * var p {prf} = f p {prf}
 f * (¬′ χ) = not (f * χ)
 f * (χ₁ ∧′ χ₂) = (f * χ₁) ∧ (f * χ₂)
 f * (χ₁ ∨′ χ₂) = (f * χ₁) ∨ (f * χ₂)
-f * (χ₁ →′ χ₂) = (f * χ₁) ⇒ (f * χ₂)
-  where
-    _⇒_ : Bool → Bool → Bool
-    true ⇒ false = false
-    _ ⇒ _ = true
-f * (χ₁ ↔′ χ₂) = (f * χ₁) ⇔′ (f * χ₂)
-  where
-    _⇔′_ : Bool → Bool → Bool
-    true ⇔′ true = true
-    false ⇔′ false = true
-    _ ⇔′ _ = false
+f * (χ₁ →′ χ₂) = (f * χ₁) ⇒b (f * χ₂)
+f * (χ₁ ↔′ χ₂) = (f * χ₁) ⇔b (f * χ₂)
 
 module example-3-5-4 where
   σ : Signature
@@ -278,12 +281,17 @@ Definition 3.7.1
 Substitution : (σ : Signature) → (τ : Signature) → Set
 Substitution σ τ = Decidable τ × τ ⊆ σ × ((p : ℕ) → p ∈ τ → LP σ)
 
-_[_] : ∀ {σ τ} → LP σ → Substitution σ τ → LP σ
+sets-lemma : ∀ {σ τ} (p : ℕ) → τ ⊆ σ → p ∈ (σ ∪ τ) → p ∈ σ
+sets-lemma p τ⊆σ p∈σ∪τ with p∈σ∪τ
+... | inj₁ p∈σ = p∈σ
+... | inj₂ p∈τ = τ⊆σ p∈τ
+
+_[_] : ∀ {σ τ} → LP (σ ∪ τ) → Substitution σ τ → LP σ
 ⊥′ [ S ] = ⊥′
-(var p {p∈σ}) [ (dec , _ , f) ] with dec p
+_[_] {σ} {τ} (var p {p∈σ∪τ}) (dec , τ⊆σ , f) with dec p
 ... | yes p∈τ = f p p∈τ
-... | no _ = var p {p∈σ}
-(¬′ ϕ) [ S ] = ¬′ (ϕ [ S ] )
+... | no _ = var p {sets-lemma {σ} {τ} p τ⊆σ p∈σ∪τ}
+(¬′ ϕ) [ S ] = ¬′ (ϕ [ S ])
 (ϕ₁ ∧′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∧′ (ϕ₂ [ S ])
 (ϕ₁ ∨′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∨′ (ϕ₂ [ S ])
 (ϕ₁ →′ ϕ₂) [ S ] = (ϕ₁ [ S ]) →′ (ϕ₂ [ S ])
@@ -306,19 +314,25 @@ module example-3-7-2 where
   ... | yes prf₁ | no prf₂ = no (λ z → prf₂ (proj₂ z))
   ... | no prf₁  | no prf₂ = no (λ z → prf₂ (proj₂ z))
 
-  p₀ p₁ p₂ p₃ : LP σ
-  p₀ = var 0 {s≤s z≤n}
-  p₁ = var 1 {s≤s (s≤s z≤n)}
-  p₂ = var 2 {s≤s (s≤s (s≤s z≤n))}
-  p₃ = var 3 {s≤s (s≤s (s≤s (s≤s z≤n)))}
+  p₀ p₁ p₂ p₃ : LP (σ ∪ τ)
+  p₀ = var 0 {inj₁ (s≤s z≤n)}
+  p₁ = var 1 {inj₁ (s≤s (s≤s z≤n))}
+  p₂ = var 2 {inj₁ (s≤s (s≤s (s≤s z≤n)))}
+  p₃ = var 3 {inj₁ (s≤s (s≤s (s≤s (s≤s z≤n))))}
 
-  ϕ : LP σ
+  p₀′ p₁′ p₂′ p₃′ : LP σ
+  p₀′ = var 0 {s≤s z≤n}
+  p₁′ = var 1 {s≤s (s≤s z≤n)}
+  p₂′ = var 2 {s≤s (s≤s (s≤s z≤n))}
+  p₃′ = var 3 {s≤s (s≤s (s≤s (s≤s z≤n)))}
+
+  ϕ : LP (σ ∪ τ)
   ϕ = (p₁ →′ (p₂ ∧′ (¬′ p₃))) ↔′ p₃
 
   ψ₁ ψ₂ ψ₃ : LP σ
-  ψ₁ = ¬′ (¬′ p₃)
-  ψ₂ = p₀
-  ψ₃ = p₁ →′ p₂
+  ψ₁ = ¬′ (¬′ p₃′)
+  ψ₂ = p₀′
+  ψ₃ = p₁′ →′ p₂′
 
   f : (p : ℕ) → p ∈ τ → LP σ
   f 0 ()
@@ -333,6 +347,38 @@ module example-3-7-2 where
   ϕ′ : LP σ
   ϕ′ = ϕ [ S ]
 
-  _ : ϕ′ ≡ (((¬′ (¬′ p₃)) →′ (p₀ ∧′ (¬′ (p₁ →′ p₂)))) ↔′
-              (p₁ →′ p₂))
+  _ : ϕ′ ≡ (((¬′ (¬′ p₃′)) →′ (p₀′ ∧′ (¬′ (p₁′ →′ p₂′)))) ↔′
+              (p₁′ →′ p₂′))
   _ = refl
+
+{-
+Definition 3.7.4
+-}
+_[_]ₛ : ∀ {σ τ} → Structure σ → Substitution σ τ → Structure (σ ∪ τ)
+(A′ [ (dec , τ⊆σ , f) ]ₛ) p {p∈σ∪τ} with dec p
+... | yes p∈τ =  A′ * (f p p∈τ)
+... | no _ with p∈σ∪τ
+...        | inj₁ p∈σ = A′ p {p∈σ}
+...        | inj₂ p∈τ = A′ p {τ⊆σ p∈τ}
+
+{-
+Lemma 3.7.5
+-}
+lemma-3-7-5
+  : ∀ {σ τ}
+  → (A′ : Structure σ) (ϕ : LP (σ ∪ τ)) (S : Substitution σ τ)
+  → A′ * (ϕ [ S ]) ≡ (A′ [ S ]ₛ) * ϕ
+lemma-3-7-5 A′ ⊥′ S = refl
+lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) with ∈τ p | p∈σ∪τ
+lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | yes p∈τ | _        = refl
+lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | no ¬p∈τ | inj₁ p∈σ = refl
+lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | no ¬p∈τ | inj₂ p∈τ = refl
+lemma-3-7-5 A′ (¬′ ϕ) S = cong not (lemma-3-7-5 A′ ϕ S)
+lemma-3-7-5 A′ (ϕ₁ ∧′ ϕ₂) S =
+  cong₂ _∧_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
+lemma-3-7-5 A′ (ϕ₁ ∨′ ϕ₂) S =
+  cong₂ _∨_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
+lemma-3-7-5 A′ (ϕ₁ →′ ϕ₂) S =
+  cong₂ _⇒b_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
+lemma-3-7-5 A′ (ϕ₁ ↔′ ϕ₂) S =
+  cong₂ _⇔b_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
