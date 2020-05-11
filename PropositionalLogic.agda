@@ -19,6 +19,7 @@ open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Relation.Nullary using (yes; no)
 open import Relation.Unary using (Pred; Decidable; ∅; _∪_; _⊆_) renaming (｛_｝ to ⟦_⟧)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans; cong; cong₂)
+import Relation.Binary.PropositionalEquality.Core
 open import Relation.Binary using (Rel; Reflexive; Symmetric; Transitive)
 open import Relation.Binary.Structures using (IsEquivalence)
 
@@ -382,3 +383,23 @@ lemma-3-7-5 A′ (ϕ₁ →′ ϕ₂) S =
   cong₂ _⇒b_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
 lemma-3-7-5 A′ (ϕ₁ ↔′ ϕ₂) S =
   cong₂ _⇔b_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
+
+{-
+Theorem 3.7.6.a
+-}
+theorem-3-7-6-a
+  : ∀ {σ τ}
+  → (ϕ₁ ϕ₂ : LP (σ ∪ τ))
+  → (S : Substitution σ τ)
+  → ϕ₁ ~ ϕ₂
+  → (ϕ₁ [ S ]) ~ (ϕ₂ [ S ])
+theorem-3-7-6-a ϕ₁ ϕ₂ S ϕ₁~ϕ₂ A′ = begin
+  (A′ * (ϕ₁ [ S ]))
+    ≡⟨ lemma-3-7-5 A′ ϕ₁ S ⟩
+  (A′ [ S ]ₛ) * ϕ₁
+    ≡⟨ ϕ₁~ϕ₂ (A′ [ S ]ₛ) ⟩
+  (A′ [ S ]ₛ) * ϕ₂
+    ≡⟨ sym (lemma-3-7-5 A′ ϕ₂ S) ⟩
+  (A′ * (ϕ₂ [ S ]))
+    ∎
+  where open Relation.Binary.PropositionalEquality.≡-Reasoning
