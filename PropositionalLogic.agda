@@ -35,13 +35,13 @@ p ∈ σ = σ p
 
 data LP : (σ : Signature) → Set where
   ⊥′ : ∀ {σ} → LP σ
-  var : ∀ {σ} → (p : ℕ) → {p ∈ σ} → LP σ
+  var : ∀ {σ} → (p : ℕ) → p ∈ σ → LP σ
   ¬′_ : ∀ {σ} → LP σ → LP σ
   _∧′_ _∨′_ _→′_ _↔′_ : ∀ {σ} → LP σ → LP σ → LP σ
 
 height : ∀ {σ} → LP σ → ℕ
 height ⊥′ = 0
-height (var p) = 0
+height (var p _) = 0
 height (¬′ ψ) = suc (height ψ)
 height (ϕ ∧′ ψ) = max (height ϕ) (height ψ)
 height (ϕ ∨′ ψ) = max (height ϕ) (height ψ)
@@ -147,13 +147,13 @@ example-3-4-3 {ϕ = ϕ} ⊢¬¬ϕ = RAA ϕ ⊢¬¬ϕ
 Definition 3.5.3 (σ-structure).
 -}
 Structure : (σ : Signature) → Set
-Structure σ = (p : ℕ) → {p ∈ σ} → Bool
+Structure σ = (p : ℕ) → (p ∈ σ) → Bool
 
 FiniteStructure : (n : ℕ) → Set
 FiniteStructure n = Structure (λ k → k < n)
 
 build-fin-struct : ∀ {n} → (Fin n → Bool) → FiniteStructure n
-build-fin-struct f p {prf} = f (fromℕ< prf)
+build-fin-struct f p prf = f (fromℕ< prf)
 
 _⇒b_ : Bool → Bool → Bool
 true ⇒b true = true
@@ -169,7 +169,7 @@ false ⇔b true = false
 
 _*_ : ∀ {σ} → Structure σ → LP σ → Bool
 f * ⊥′ = false
-f * var p {prf} = f p {prf}
+f * var p prf = f p prf
 f * (¬′ χ) = not (f * χ)
 f * (χ₁ ∧′ χ₂) = (f * χ₁) ∧ (f * χ₂)
 f * (χ₁ ∨′ χ₂) = (f * χ₁) ∨ (f * χ₂)
@@ -190,8 +190,8 @@ module example-3-5-4 where
 
   χ : LP σ
   χ =
-    var 1 {s≤s (s≤s z≤n)}
-      ∧′ (¬′ (var 0 {s≤s z≤n} →′ var 2 {s≤s (s≤s (s≤s z≤n))}))
+    var 1 (s≤s (s≤s z≤n))
+      ∧′ (¬′ (var 0 (s≤s z≤n) →′ var 2 (s≤s (s≤s (s≤s z≤n)))))
 
   _ : A′ * χ ≡ false
   _ = refl
@@ -288,9 +288,9 @@ sets-lemma p τ⊆σ p∈σ∪τ with p∈σ∪τ
 
 _[_] : ∀ {σ τ} → LP (σ ∪ τ) → Substitution σ τ → LP σ
 ⊥′ [ S ] = ⊥′
-_[_] {σ} {τ} (var p {p∈σ∪τ}) (dec , τ⊆σ , f) with dec p
+_[_] {σ} {τ} (var p p∈σ∪τ) (dec , τ⊆σ , f) with dec p
 ... | yes p∈τ = f p p∈τ
-... | no _ = var p {sets-lemma {σ} {τ} p τ⊆σ p∈σ∪τ}
+... | no _ = var p (sets-lemma {σ} {τ} p τ⊆σ p∈σ∪τ)
 (¬′ ϕ) [ S ] = ¬′ (ϕ [ S ])
 (ϕ₁ ∧′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∧′ (ϕ₂ [ S ])
 (ϕ₁ ∨′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∨′ (ϕ₂ [ S ])
@@ -315,16 +315,16 @@ module example-3-7-2 where
   ... | no prf₁  | no prf₂ = no (λ z → prf₂ (proj₂ z))
 
   p₀ p₁ p₂ p₃ : LP (σ ∪ τ)
-  p₀ = var 0 {inj₁ (s≤s z≤n)}
-  p₁ = var 1 {inj₁ (s≤s (s≤s z≤n))}
-  p₂ = var 2 {inj₁ (s≤s (s≤s (s≤s z≤n)))}
-  p₃ = var 3 {inj₁ (s≤s (s≤s (s≤s (s≤s z≤n))))}
+  p₀ = var 0 (inj₁ (s≤s z≤n))
+  p₁ = var 1 (inj₁ (s≤s (s≤s z≤n)))
+  p₂ = var 2 (inj₁ (s≤s (s≤s (s≤s z≤n))))
+  p₃ = var 3 (inj₁ (s≤s (s≤s (s≤s (s≤s z≤n)))))
 
   p₀′ p₁′ p₂′ p₃′ : LP σ
-  p₀′ = var 0 {s≤s z≤n}
-  p₁′ = var 1 {s≤s (s≤s z≤n)}
-  p₂′ = var 2 {s≤s (s≤s (s≤s z≤n))}
-  p₃′ = var 3 {s≤s (s≤s (s≤s (s≤s z≤n)))}
+  p₀′ = var 0 (s≤s z≤n)
+  p₁′ = var 1 (s≤s (s≤s z≤n))
+  p₂′ = var 2 (s≤s (s≤s (s≤s z≤n)))
+  p₃′ = var 3 (s≤s (s≤s (s≤s (s≤s z≤n))))
 
   ϕ : LP (σ ∪ τ)
   ϕ = (p₁ →′ (p₂ ∧′ (¬′ p₃))) ↔′ p₃
@@ -355,11 +355,11 @@ module example-3-7-2 where
 Definition 3.7.4
 -}
 _[_]ₛ : ∀ {σ τ} → Structure σ → Substitution σ τ → Structure (σ ∪ τ)
-(A′ [ (dec , τ⊆σ , f) ]ₛ) p {p∈σ∪τ} with dec p
+(A′ [ (dec , τ⊆σ , f) ]ₛ) p p∈σ∪τ with dec p
 ... | yes p∈τ =  A′ * (f p p∈τ)
 ... | no _ with p∈σ∪τ
-...        | inj₁ p∈σ = A′ p {p∈σ}
-...        | inj₂ p∈τ = A′ p {τ⊆σ p∈τ}
+...        | inj₁ p∈σ = A′ p p∈σ
+...        | inj₂ p∈τ = A′ p (τ⊆σ p∈τ)
 
 {-
 Lemma 3.7.5
@@ -369,10 +369,10 @@ lemma-3-7-5
   → (A′ : Structure σ) (ϕ : LP (σ ∪ τ)) (S : Substitution σ τ)
   → A′ * (ϕ [ S ]) ≡ (A′ [ S ]ₛ) * ϕ
 lemma-3-7-5 A′ ⊥′ S = refl
-lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) with ∈τ p | p∈σ∪τ
-lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | yes p∈τ | _        = refl
-lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | no ¬p∈τ | inj₁ p∈σ = refl
-lemma-3-7-5 A′ (var p {p∈σ∪τ}) (∈τ , _ , _) | no ¬p∈τ | inj₂ p∈τ = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) with ∈τ p | p∈σ∪τ
+lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | yes p∈τ | _        = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | no ¬p∈τ | inj₁ p∈σ = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | no ¬p∈τ | inj₂ p∈τ = refl
 lemma-3-7-5 A′ (¬′ ϕ) S = cong not (lemma-3-7-5 A′ ϕ S)
 lemma-3-7-5 A′ (ϕ₁ ∧′ ϕ₂) S =
   cong₂ _∧_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
