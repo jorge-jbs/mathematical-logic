@@ -13,9 +13,9 @@ open import Data.Fin using (Fin; zero; suc; fromℕ<)
 open import Data.Nat using (ℕ; suc; _<_; _<?_; _>_; _>?_; z≤n; s≤s)
 open import Data.Product using (_×_; proj₁; proj₂; _,′_)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Function using (_∘_)
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (_⇔_; Equivalence; equivalence)
 open import Relation.Nullary using (yes; no)
 open import Relation.Unary using (Pred; Decidable; ∅; _∪_; _⊆_) renaming (｛_｝ to ⟦_⟧)
 open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; sym; trans; cong; cong₂)
@@ -227,9 +227,10 @@ module lemma-3-6-1 {σ} (ϕ ψ : LP σ) where
 
   i→ii : I → II
   i→ii i-prf A′ with A′ * ϕ ≟ true | A′ * ψ ≟ true
-  i→ii i-prf A′ | yes ϕ-true | yes ψ-true rewrite ϕ-true rewrite ψ-true = refl
+  i→ii i-prf A′ | yes ϕ-true | yes ψ-true
+      rewrite ϕ-true | ψ-true = refl
   i→ii i-prf A′ | no ϕ-false | no ψ-false
-      rewrite ¬t→f ϕ-false rewrite ¬t→f ψ-false = refl
+      rewrite ¬t→f ϕ-false | ¬t→f ψ-false = refl
   i→ii i-prf A′ | no _       | yes ψ-true
       rewrite ψ-true with Equivalence.from (i-prf A′) ⟨$⟩ ψ-true
   i→ii i-prf A′ | no _       | yes ψ-true | prf = prf
@@ -279,19 +280,35 @@ Theorem 3.6.4
 {-
 Definition 3.7.1
 -}
-Substitution : (σ : Signature) → (τ : Signature) → Set
-Substitution σ τ = Decidable τ × τ ⊆ σ × ((p : ℕ) → p ∈ τ → LP σ)
+
+record Substitution (σ : Signature) (τ : Signature) : Set where
+  constructor substitution
+  field
+    dec : Decidable τ
+    τ⊆σ : τ ⊆ σ
+    subst-var : (p : ℕ) → p ∈ τ → LP σ
+
+open Substitution
 
 sets-lemma : ∀ {σ τ} (p : ℕ) → τ ⊆ σ → p ∈ (σ ∪ τ) → p ∈ σ
 sets-lemma p τ⊆σ p∈σ∪τ with p∈σ∪τ
 ... | inj₁ p∈σ = p∈σ
 ... | inj₂ p∈τ = τ⊆σ p∈τ
 
+weaken-term-signature : ∀ {σ τ} → LP σ → LP (σ ∪ τ)
+weaken-term-signature ⊥′ = ⊥′
+weaken-term-signature (var p p∈σ) = var p (inj₁ p∈σ)
+weaken-term-signature (¬′ ϕ) = ¬′ weaken-term-signature ϕ
+weaken-term-signature (ϕ₁ ∧′ ϕ₂) = weaken-term-signature ϕ₁ ∧′ weaken-term-signature ϕ₂
+weaken-term-signature (ϕ₁ ∨′ ϕ₂) = weaken-term-signature ϕ₁ ∨′ weaken-term-signature ϕ₂
+weaken-term-signature (ϕ₁ →′ ϕ₂) = weaken-term-signature ϕ₁ →′ weaken-term-signature ϕ₂
+weaken-term-signature (ϕ₁ ↔′ ϕ₂) = weaken-term-signature ϕ₁ ↔′ weaken-term-signature ϕ₂
+
 _[_] : ∀ {σ τ} → LP (σ ∪ τ) → Substitution σ τ → LP σ
 ⊥′ [ S ] = ⊥′
-_[_] {σ} {τ} (var p p∈σ∪τ) (dec , τ⊆σ , f) with dec p
-... | yes p∈τ = f p p∈τ
-... | no _ = var p (sets-lemma {σ} {τ} p τ⊆σ p∈σ∪τ)
+_[_] {σ} {τ} (var p p∈σ∪τ) S with dec S p
+... | yes p∈τ = subst-var S p p∈τ
+... | no _ = var p (sets-lemma {σ} {τ} p (τ⊆σ S) p∈σ∪τ)
 (¬′ ϕ) [ S ] = ¬′ (ϕ [ S ])
 (ϕ₁ ∧′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∧′ (ϕ₂ [ S ])
 (ϕ₁ ∨′ ϕ₂) [ S ] = (ϕ₁ [ S ]) ∨′ (ϕ₂ [ S ])
@@ -343,7 +360,7 @@ module example-3-7-2 where
   f (suc (suc (suc (suc _)))) (_ , s≤s (s≤s (s≤s (s≤s ()))))
 
   S : Substitution σ τ
-  S = τ-dec , proj₂ , f
+  S = substitution τ-dec proj₂ f
 
   ϕ′ : LP σ
   ϕ′ = ϕ [ S ]
@@ -356,11 +373,11 @@ module example-3-7-2 where
 Definition 3.7.4
 -}
 _[_]ₛ : ∀ {σ τ} → Structure σ → Substitution σ τ → Structure (σ ∪ τ)
-(A′ [ (dec , τ⊆σ , f) ]ₛ) p p∈σ∪τ with dec p
-... | yes p∈τ =  A′ * (f p p∈τ)
+(A′ [ S ]ₛ) p p∈σ∪τ with dec S p
+... | yes p∈τ =  A′ * (subst-var S p p∈τ)
 ... | no _ with p∈σ∪τ
 ...        | inj₁ p∈σ = A′ p p∈σ
-...        | inj₂ p∈τ = A′ p (τ⊆σ p∈τ)
+...        | inj₂ p∈τ = A′ p (τ⊆σ S p∈τ)
 
 {-
 Lemma 3.7.5
@@ -370,10 +387,10 @@ lemma-3-7-5
   → (A′ : Structure σ) (ϕ : LP (σ ∪ τ)) (S : Substitution σ τ)
   → A′ * (ϕ [ S ]) ≡ (A′ [ S ]ₛ) * ϕ
 lemma-3-7-5 A′ ⊥′ S = refl
-lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) with ∈τ p | p∈σ∪τ
-lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | yes p∈τ | _        = refl
-lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | no ¬p∈τ | inj₁ p∈σ = refl
-lemma-3-7-5 A′ (var p p∈σ∪τ) (∈τ , _ , _) | no ¬p∈τ | inj₂ p∈τ = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) S with dec S p | p∈σ∪τ
+lemma-3-7-5 A′ (var p p∈σ∪τ) S | yes p∈τ | _        = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) S | no ¬p∈τ | inj₁ p∈σ = refl
+lemma-3-7-5 A′ (var p p∈σ∪τ) S | no ¬p∈τ | inj₂ p∈τ = refl
 lemma-3-7-5 A′ (¬′ ϕ) S = cong not (lemma-3-7-5 A′ ϕ S)
 lemma-3-7-5 A′ (ϕ₁ ∧′ ϕ₂) S =
   cong₂ _∧_ (lemma-3-7-5 A′ ϕ₁ S) (lemma-3-7-5 A′ ϕ₂ S)
@@ -401,5 +418,61 @@ theorem-3-7-6-a ϕ₁ ϕ₂ S ϕ₁~ϕ₂ A′ = begin
   (A′ [ S ]ₛ) * ϕ₂
     ≡⟨ sym (lemma-3-7-5 A′ ϕ₂ S) ⟩
   (A′ * (ϕ₂ [ S ]))
+    ∎
+  where open Relation.Binary.PropositionalEquality.≡-Reasoning
+
+_~ₛ_ : ∀ {σ τ} (S₁ S₂ : Substitution σ τ) → Set
+S₁ ~ₛ S₂ = ∀ (ϕ : LP _) → (ϕ [ S₁ ]) ~ (ϕ [ S₂ ])
+
+_≅ₛ_ : ∀ {σ} (A₁ A₂ : Structure σ) → Set
+_≅ₛ_ {σ} A₁ A₂ = ∀ (p : ℕ) (prf : p ∈ σ) → A₁ p prf ≡ A₂ p prf
+
+structure-cong
+  : ∀ {σ} {A′ B′ : Structure σ}
+  → (ϕ : LP σ)
+  → A′ ≅ₛ B′
+  → A′ * ϕ ≡ B′ * ϕ
+structure-cong ⊥′ prf = refl
+structure-cong (var p p∈σ) prf = prf p p∈σ
+structure-cong (¬′ ϕ) prf = cong not (structure-cong ϕ prf)
+structure-cong (ϕ₁ ∧′ ϕ₂) prf =
+  cong₂ _∧_ (structure-cong ϕ₁ prf) (structure-cong ϕ₂ prf)
+structure-cong (ϕ₁ ∨′ ϕ₂) prf =
+  cong₂ _∨_ (structure-cong ϕ₁ prf) (structure-cong ϕ₂ prf)
+structure-cong (ϕ₁ →′ ϕ₂) prf =
+  cong₂ _⇒b_ (structure-cong ϕ₁ prf) (structure-cong ϕ₂ prf)
+structure-cong (ϕ₁ ↔′ ϕ₂) prf =
+  cong₂ _⇔b_ (structure-cong ϕ₁ prf) (structure-cong ϕ₂ prf)
+
+theorem-3-7-6-b-lemma
+  : ∀ {σ τ}
+  → (A′ : Structure σ)
+  → (S₁ S₂ : Substitution σ τ)
+  → S₁ ~ₛ S₂
+  → (A′ [ S₁ ]ₛ) ≅ₛ (A′ [ S₂ ]ₛ)
+theorem-3-7-6-b-lemma A′ S₁ S₂ S₁~S₂ p prf
+  with dec S₁ p | dec S₂ p | prf    | S₁~S₂ (var p prf) A′
+... | yes _     | yes _    | _      | [S₁~S₂]              = [S₁~S₂]
+... | yes _     | no _     | inj₁ _ | [S₁~S₂]              = [S₁~S₂]
+... | yes _     | no _     | inj₂ _ | [S₁~S₂]              = [S₁~S₂]
+... | no _      | yes _    | inj₁ _ | [S₁~S₂]              = [S₁~S₂]
+... | no _      | yes _    | inj₂ _ | [S₁~S₂]              = [S₁~S₂]
+... | no _      | no _     | inj₁ _ | [S₁~S₂]              = [S₁~S₂]
+... | no _      | no _     | inj₂ _ | [S₁~S₂]              = [S₁~S₂]
+
+theorem-3-7-6-b
+  : ∀ {σ τ}
+  → (ϕ : LP (σ ∪ τ))
+  → (S₁ S₂ : Substitution σ τ)
+  → S₁ ~ₛ S₂
+  → (ϕ [ S₁ ]) ~ (ϕ [ S₂ ])
+theorem-3-7-6-b ϕ S₁ S₂ S₁~S₂ A′ =
+  (A′ * (ϕ [ S₁ ]))
+    ≡⟨ lemma-3-7-5 A′ ϕ S₁ ⟩
+  (A′ [ S₁ ]ₛ) * ϕ
+    ≡⟨ structure-cong ϕ (theorem-3-7-6-b-lemma A′ S₁ S₂ S₁~S₂) ⟩
+  (A′ [ S₂ ]ₛ) * ϕ
+    ≡⟨ sym (lemma-3-7-5 A′ ϕ S₂) ⟩
+  (A′ * (ϕ [ S₂ ]))
     ∎
   where open Relation.Binary.PropositionalEquality.≡-Reasoning
