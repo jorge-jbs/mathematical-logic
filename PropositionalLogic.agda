@@ -3,7 +3,7 @@ Formalization of Propositional Logic following "Mathematical Logic" of
 Ian Chiswell and Wilfrid Hodges.
 -}
 
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --cubical --safe #-}
 
 open import Agda.Builtin.Sigma using (_,_)
 open import Level using (0ℓ)
