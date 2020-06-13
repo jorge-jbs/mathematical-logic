@@ -3,7 +3,7 @@ Formalization of Propositional Logic following "Mathematical Logic" of
 Ian Chiswell and Wilfrid Hodges.
 -}
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --without-K --safe #-}
 
 open import Agda.Builtin.Sigma using (_,_)
 open import Level using (0ℓ)
@@ -34,7 +34,7 @@ Signature = Pred ℕ 0ℓ
 _∈_ : (p : ℕ) (σ : Signature) → Set
 p ∈ σ = σ p
 
-data LP : (σ : Signature) → Set where
+data LP : (σ : Signature) → Set₁ where
   ⊥′ : ∀ {σ} → LP σ
   var : ∀ {σ} → (p : ℕ) → p ∈ σ → LP σ
   ¬′_ : ∀ {σ} → LP σ → LP σ
@@ -49,8 +49,8 @@ height (ϕ ∨′ ψ) = max (height ϕ) (height ψ)
 height (ϕ →′ ψ) = max (height ϕ) (height ψ)
 height (ϕ ↔′ ψ) = max (height ϕ) (height ψ)
 
-Assumptions : (σ : Signature) → Set₁
-Assumptions σ = Pred (LP σ) 0ℓ
+Assumptions : (σ : Signature) → Set₂
+Assumptions σ = Pred (LP σ) (Level.suc 0ℓ)
 
 infixr 3 _⊢_
 
@@ -62,7 +62,7 @@ data _⊢_
     : {σ : Signature}
     → (Γ : Assumptions σ)
     → (conclusion : LP σ)
-    → Set₁ where
+    → Set₂ where
   weakening
     : ∀ {σ} {Γ Δ : Assumptions σ} {ϕ}
     → Γ ⊆ Δ
@@ -129,13 +129,13 @@ example-2-4-5 ϕ ψ χ =
     lemma₂ = λ z → inj₁ (inj₁ z)
 
     lemma₃ : ∀ {σ} {ϕ ψ χ : LP σ} →
-      _⊆_ {Level.zero} {LP σ} {Level.zero} {Level.zero}
-      (⟦_⟧ {Level.zero} {LP σ} (_→′_ {σ} ψ χ))
-      (_∪_ {Level.zero} {LP σ} {Level.zero} {Level.zero}
-      (_∪_ {Level.zero} {LP σ} {Level.zero} {Level.zero}
-      (⟦_⟧ {Level.zero} {LP σ} (_→′_ {σ} ϕ ψ))
-      (⟦_⟧ {Level.zero} {LP σ} (_→′_ {σ} ψ χ)))
-      (⟦_⟧ {Level.zero} {LP σ} ϕ))
+      _⊆_ {_} {LP σ} {_} {_}
+      (⟦_⟧ {_} {LP σ} (_→′_ {σ} ψ χ))
+      (_∪_ {_} {LP σ} {_} {_}
+      (_∪_ {_} {LP σ} {_} {_}
+      (⟦_⟧ {_} {LP σ} (_→′_ {σ} ϕ ψ))
+      (⟦_⟧ {_} {LP σ} (_→′_ {σ} ψ χ)))
+      (⟦_⟧ {_} {LP σ} ϕ))
     lemma₃ = λ z → inj₁ (inj₂ z)
 
 example-3-4-3
@@ -281,7 +281,7 @@ Theorem 3.6.4
 Definition 3.7.1
 -}
 
-record Substitution (σ : Signature) (τ : Signature) : Set where
+record Substitution (σ : Signature) (τ : Signature) : Set₁ where
   constructor substitution
   field
     dec : Decidable τ
@@ -421,7 +421,7 @@ theorem-3-7-6-a ϕ₁ ϕ₂ S ϕ₁~ϕ₂ A′ = begin
     ∎
   where open Relation.Binary.PropositionalEquality.≡-Reasoning
 
-_~ₛ_ : ∀ {σ τ} (S₁ S₂ : Substitution σ τ) → Set
+_~ₛ_ : ∀ {σ τ} (S₁ S₂ : Substitution σ τ) → Set₁
 S₁ ~ₛ S₂ = ∀ (ϕ : LP _) → (ϕ [ S₁ ]) ~ (ϕ [ S₂ ])
 
 _≅ₛ_ : ∀ {σ} (A₁ A₂ : Structure σ) → Set
