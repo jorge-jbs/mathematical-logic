@@ -98,13 +98,13 @@ example-2-4-5
   : ∀ {σ} (ϕ ψ χ : LP σ)
   → (⟦ ϕ →′ ψ ⟧ ∪ ⟦ ψ →′ χ ⟧) ⊢ (ϕ →′ χ)
 example-2-4-5 ϕ ψ χ =
-  →I ϕ χ  -- ϕ → χ
-    (→E   -- χ
-      (→E  -- ψ
-        (weakening lemma₁ (A ϕ))  -- ϕ
-        (weakening lemma₂ (A (ϕ →′ ψ)))  -- ϕ →′ ψ
+  →-intro ϕ χ  -- ϕ → χ
+    (→-elim   -- χ
+      (→-elim  -- ψ
+        (weakening lemma₁ (axiom ϕ))  -- ϕ
+        (weakening lemma₂ (axiom (ϕ →′ ψ)))  -- ϕ →′ ψ
       )
-      (weakening lemma₃ (A (ψ →′ χ)))  -- ψ → χ
+      (weakening lemma₃ (axiom (ψ →′ χ)))  -- ψ → χ
     )
   where
     lemma₁

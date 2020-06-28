@@ -3,10 +3,10 @@ Formalization of Propositional Logic following "Mathematical Logic" of
 Ian Chiswell and Wilfrid Hodges.
 -}
 
-{-# OPTIONS --without-K --safe #-}
---{-# OPTIONS --without-K --allow-unsolved-metas #-}
+--{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --without-K --allow-unsolved-metas #-}
 
-open import Level using (Level; 0ℓ; _⊔_)
+open import Level using (Level; 0ℓ)
 open import Axiom.Extensionality.Propositional using (Extensionality)
 
 module PropositionalLogic (funExt : Extensionality 0ℓ 0ℓ) where
@@ -42,21 +42,10 @@ open import Relation.Binary.PropositionalEquality.Core using (subst)
 open import Relation.Binary using (Rel; Reflexive; Symmetric; Transitive)
 open import Relation.Binary.Structures using (IsEquivalence)
 
+open import Signature
+open import Structure funExt
+open import Table funExt
 open import Utils
-
-max : ℕ → ℕ → ℕ
-max 0 m = m
-max (suc n) 0 = suc n
-max (suc n) (suc m) = max n m
-
-Signature : Set₁
-Signature = Pred ℕ 0ℓ
-
-finite-signature : ℕ → Signature
-finite-signature n = λ k → k < n
-
-_∈_ : {a ℓ : Level} {A : Set a} (a : A) → Pred A ℓ → Set ℓ
-p ∈ σ = σ p
 
 private
   variable
@@ -71,93 +60,7 @@ data LP : (σ : Signature) → Set₁ where
 private
   variable
     ψ ϕ χ : LP σ
-
-height : LP σ → ℕ
-height ⊥′ = 0
-height (var p _) = 0
-height (¬′ ψ) = suc (height ψ)
-height (ϕ ∧′ ψ) = max (height ϕ) (height ψ)
-height (ϕ ∨′ ψ) = max (height ϕ) (height ψ)
-height (ϕ →′ ψ) = max (height ϕ) (height ψ)
-height (ϕ ↔′ ψ) = max (height ϕ) (height ψ)
-
-Assumptions : (σ : Signature) → Set₂
-Assumptions σ = Pred (LP σ) (Level.suc 0ℓ)
-
-private
-  variable
-    Γ Δ : Assumptions σ
-
-infixr 3 _⊢_
-
-{-
-Definition 3.4.1 (σ-derivation) and 3.4.4 (σ-sequent). Merged thanks to
-dependent types.
--}
-data _⊢_
-    : (Γ : Assumptions σ)
-    → (conclusion : LP σ)
-    → Set₂ where
-  weakening
-    : Γ ⊆ Δ
-    → Γ ⊢ ϕ
-    → Δ ⊢ ϕ
-  axiom
-    : (ϕ : LP σ)
-    → ⟦ ϕ ⟧ ⊢ ϕ
-  -- Can this be proven? (without making it an axiom)
-  transitive
-    : Δ ⊢ ψ
-    → (∀ δ → δ ∈ Δ → Γ ⊢ δ)
-    → Γ ⊢ ψ
-  →-intro
-    : (ϕ ψ : LP σ)
-    → (Γ ∪ ⟦ ϕ ⟧) ⊢ ψ
-    → Γ ⊢ (ϕ →′ ψ)
-  ¬-intro
-    : (ϕ : LP σ)
-    → (Γ ∪ ⟦ ϕ ⟧) ⊢ ⊥′
-    → Γ ⊢ (¬′ ϕ)
-  RAA
-    : (ϕ : LP σ)
-    → (Γ ∪ ⟦ ¬′ ϕ ⟧) ⊢ ⊥′
-    → Γ ⊢ ϕ
-  →-elim
-    : Γ ⊢ ϕ
-    → Γ ⊢ (ϕ →′ ψ)
-    → Γ ⊢ ψ
-  ∨-elim
-    : Γ           ⊢ (ϕ ∨′ ψ)
-    → (Γ ∪ ⟦ ϕ ⟧) ⊢ χ
-    → (Γ ∪ ⟦ ψ ⟧) ⊢ χ
-    → Γ ⊢ χ
-  -- TODO: add the rest of the derivation rules
-
-{-
-Definition 3.5.3 (σ-structure).
--}
-Structure : (σ : Signature) → Set
-Structure σ = (p : ℕ) → (p ∈ σ) → Bool
-
-private
-  variable
     A B : Structure σ
-
-FiniteStructure : (n : ℕ) → Set
-FiniteStructure n = Structure (finite-signature n)
-
-empty-structure : FiniteStructure 0
-empty-structure = λ p ()
-
-isContr-FiniteStructure-0 : ∀ (p : FiniteStructure 0) → p ≡ empty-structure
-isContr-FiniteStructure-0 p =
-  funExt (λ x → funExt (λ prf → lemma p x prf))
-  where
-    lemma : ∀ (p : FiniteStructure 0) x prf → p x prf ≡ empty-structure x prf
-    lemma p n ()
-
-build-fin-struct : ∀ {n} → (Fin n → Bool) → FiniteStructure n
-build-fin-struct f p prf = f (fromℕ< prf)
 
 _⇒b_ : Bool → Bool → Bool
 true ⇒b true = true
@@ -183,8 +86,8 @@ f * (χ₁ ↔′ χ₂) = (f * χ₁) ⇔b (f * χ₂)
 {-
 Definition 3.5.7 (tautology)
 -}
-⊨ : ∀ {σ} (ϕ : LP σ) → Set
-⊨ {σ} ϕ = ∀ {A′ : Structure σ} → A′ * ϕ ≡ true
+⊨ : (ϕ : LP σ) → Set
+⊨ ϕ = ∀ A → A * ϕ ≡ true
 
 {-
 Lemma 3.6.1
@@ -260,12 +163,9 @@ Theorem 3.6.4
     ; trans = λ x~y y~z A → trans (x~y A) (y~z A)
     }
 
--- TODO: maybe take a term in LP σ to a term in LP τ?
-
 {-
 Definition 3.7.1
 -}
-
 record Substitution (σ : Signature) (τ : Signature) : Set₁ where
   constructor substitution
   field
@@ -274,11 +174,6 @@ record Substitution (σ : Signature) (τ : Signature) : Set₁ where
     subst-var : (p : ℕ) → p ∈ τ → LP σ
 
 open Substitution
-
-sets-lemma : (p : ℕ) → τ ⊆ σ → p ∈ (σ ∪ τ) → p ∈ σ
-sets-lemma p τ⊆σ p∈σ∪τ with p∈σ∪τ
-... | inj₁ p∈σ = p∈σ
-... | inj₂ p∈τ = τ⊆σ p∈τ
 
 weaken-term-signature : LP σ → LP (σ ∪ τ)
 weaken-term-signature ⊥′ = ⊥′
@@ -312,7 +207,6 @@ _[_]ₛ : Structure σ → Substitution σ τ → Structure (σ ∪ τ)
 
 {-
 Lemma 3.7.5
-
 -}
 lemma-3-7-5
   : {S : Substitution σ τ} (ϕ : LP (σ ∪ τ))
@@ -340,7 +234,7 @@ theorem-3-7-6-a
   → (S : Substitution σ τ)
   → ϕ₁ ~ ϕ₂
   → (ϕ₁ [ S ]) ~ (ϕ₂ [ S ])
-theorem-3-7-6-a ϕ₁ ϕ₂ S ϕ₁~ϕ₂ A′ = begin
+theorem-3-7-6-a ϕ₁ ϕ₂ S ϕ₁~ϕ₂ A′ =
   (A′ * (ϕ₁ [ S ]))
     ≡⟨ lemma-3-7-5 ϕ₁ ⟩
   (A′ [ S ]ₛ) * ϕ₁
@@ -372,231 +266,23 @@ theorem-3-7-6-b-lemma S₁ S₂ S₁~S₂ =
     ... | no _      | no _     | inj₂ _ | [S₁~S₂]              = [S₁~S₂]
 
 theorem-3-7-6-b
-  : ∀ {σ τ}
-  → (ϕ : LP (σ ∪ τ))
+  : (ϕ : LP (σ ∪ τ))
   → (S₁ S₂ : Substitution σ τ)
   → S₁ ~ₛ S₂
   → (ϕ [ S₁ ]) ~ (ϕ [ S₂ ])
-theorem-3-7-6-b ϕ S₁ S₂ S₁~S₂ A′ =
-  (A′ * (ϕ [ S₁ ]))
+theorem-3-7-6-b ϕ S₁ S₂ S₁~S₂ A =
+  (A * (ϕ [ S₁ ]))
     ≡⟨ lemma-3-7-5 ϕ ⟩
-  (A′ [ S₁ ]ₛ) * ϕ
+  (A [ S₁ ]ₛ) * ϕ
     ≡⟨ cong (_* ϕ) (theorem-3-7-6-b-lemma S₁ S₂ S₁~S₂) ⟩
-  (A′ [ S₂ ]ₛ) * ϕ
+  (A [ S₂ ]ₛ) * ϕ
     ≡⟨ sym (lemma-3-7-5 ϕ) ⟩
-  (A′ * (ϕ [ S₂ ]))
+  (A * (ϕ [ S₂ ]))
     ∎
-
-unit-structure : Bool → FiniteStructure 1
-unit-structure b 0 (s≤s z≤n) = b
-unit-structure b 1 (s≤s ())
-
-1-structure-is-true-or-false
-  : (A : FiniteStructure 1)
-  → A ≡ unit-structure false ⊎ A ≡ unit-structure true
-1-structure-is-true-or-false A with A ℕ.zero (s≤s z≤n) ≟ false
-1-structure-is-true-or-false A | yes prf =
-  inj₁ (funExt λ p → funExt (λ x → lemma p x))
-  where
-    lemma
-      : (p : ℕ)
-      → (x : suc p Data.Nat.≤ 1)
-      → A p x ≡ unit-structure false p x
-    lemma ℕ.zero (s≤s z≤n) = prf
-    lemma (suc p) (s≤s ())
-1-structure-is-true-or-false A | no prf′ with ¬f→t prf′
-1-structure-is-true-or-false A | no prf′ | prf =
-  inj₂ (funExt λ p → funExt (λ x → lemma p x))
-  where
-    lemma
-      : (p : ℕ)
-      → (x : suc p Data.Nat.≤ 1)
-      → A p x ≡ unit-structure true p x
-    lemma ℕ.zero (s≤s z≤n) = prf
-    lemma (suc p) (s≤s ())
-
-weaken-struct
-  : ∀ n
-  → (Structure (finite-signature (suc n)))
-  → (Structure (finite-signature n))
-weaken-struct n A′ p prf = A′ p (≤-step prf)
-
-strengthen-struct
-  : ∀ n
-  → Bool
-  → FiniteStructure n
-  → FiniteStructure (suc n)
-strengthen-struct n b A′ p _ with p <? n
-... | yes prf = A′ p prf
-... | no _ = b
-
-weaken-struct-fun
-  : ∀ n
-  → (FiniteStructure (suc n) → Bool)
-  → Bool
-  → (FiniteStructure n → Bool)
-weaken-struct-fun n f b A′ = f (strengthen-struct n b A′)
-
-data Table : ℕ → Set where
-  constant : Bool → Table 0
-  branch
-    : ∀ {n}
-    → Table n
-      -- ^ true branch
-    → Table n
-      -- ^ false branch
-    → Table (suc n)
-
-_ : Table 2
-_ =
-  branch
-    (branch  -- T
-      (constant false)  -- T T
-      (constant false)  -- T F
-    )
-    (branch  -- F
-      (constant false)  -- F T
-      (constant false)  -- F F
-    )
-
-strengthen-struct-reduce
-  : ∀ n b A p prf
-  → strengthen-struct n b A p (≤-step prf) ≡ A p prf
-strengthen-struct-reduce n b A p prf with p <? n
-... | yes prf′ = cong (A p) (<-irrelevant prf′ prf)
-... | no ¬prf = ⊥-elim (¬prf prf)
-
-weaken-strengthen
-  : ∀ n b A
-  → weaken-struct n (strengthen-struct n b A) ≡ A
-weaken-strengthen n b A = funExt λ p → funExt λ prf →
-  begin
-    weaken-struct n (strengthen-struct n b A) p prf
-  ≡⟨⟩
-    strengthen-struct n b A p (≤-step prf)
-  ≡⟨ strengthen-struct-reduce n b A p prf ⟩
-    A p prf
-  ∎
-
-strengthen-struct-true
-  : ∀ n b A
-  → strengthen-struct (suc n) b A (suc n) (s≤s (s≤s ≤-refl)) ≡ b
-strengthen-struct-true n b A′ with suc n <? suc n
-... | yes s-n<s-n = ⊥-elim (<-irrefl refl s-n<s-n)
-... | no _ = refl
-
-table→fun
-  : ∀ {n}
-  → Table n
-  → (FiniteStructure n → Bool)
-table→fun {0} (constant b) A′ = b
-table→fun {suc n} (branch t₁ t₂) A with A n (s≤s ≤-refl)
-... | true = table→fun t₁ (weaken-struct _ A)
-... | false = table→fun t₂ (weaken-struct _ A)
-
-fun→table
-  : ∀ {n}
-  → (Structure (finite-signature n) → Bool)
-  → Table n
-fun→table {0} g = constant (g empty-structure)
-fun→table {suc _} g =
-  branch
-    (fun→table (weaken-struct-fun _ g true))
-    (fun→table (weaken-struct-fun _ g false))
 
 get-table : ∀ {n} → LP (finite-signature n) → Table n
 get-table {0} ψ = constant (empty-structure * ψ)
 get-table {suc _} ψ = fun→table (_* ψ)
-
-table→fun-vec
-  : ∀ {n}
-  → Table n
-  → (Vec Bool n → Bool)
-table→fun-vec (constant b) Vec.[] = b
-table→fun-vec (branch t₁ t₂) (true Vec.∷ v) = table→fun-vec t₁ v
-table→fun-vec (branch t₁ t₂) (false Vec.∷ v) = table→fun-vec t₂ v
-
-fun-vec→table
-  : ∀ {n}
-  → (Vec Bool n → Bool)
-  → Table n
-fun-vec→table {0} f = constant (f Vec.[])
-fun-vec→table {suc n} f =
-  branch
-    (fun-vec→table (λ v → f (true Vec.∷ v)))
-    (fun-vec→table (λ v → f (false Vec.∷ v)))
-
-fun-vec→table→fun-vec
-  : ∀ {n} (f : Vec Bool n → Bool)
-  → table→fun-vec (fun-vec→table f) ≡ f
-fun-vec→table→fun-vec f = funExt (lemma f)
-  where
-    lemma
-      : ∀ {n} (f : Vec Bool n → Bool) (v : Vec Bool n)
-      → table→fun-vec (fun-vec→table f) v ≡ f v
-    lemma f Vec.[] = refl
-    lemma f (true Vec.∷ v) = lemma (λ v₁ → f (true Vec.∷ v₁)) v
-    lemma f (false Vec.∷ v) = lemma (λ v₁ → f (false Vec.∷ v₁)) v
-
-table→fun-vec→table
-  : ∀ {n} (t : Table n)
-  → fun-vec→table (table→fun-vec t) ≡ t
-table→fun-vec→table (constant x) = refl
-table→fun-vec→table (branch t₁ t₂) = cong₂ branch ind-hyp₁ ind-hyp₂
-  where
-    ind-hyp₁ : fun-vec→table (table→fun-vec t₁) ≡ t₁
-    ind-hyp₁ = table→fun-vec→table t₁
-
-    ind-hyp₂ : fun-vec→table (table→fun-vec t₂) ≡ t₂
-    ind-hyp₂ = table→fun-vec→table t₂
-
-gen-structs : ∀ n → List (Vec Bool n)
-gen-structs 0 = L.[ V.[] ]
-gen-structs (suc n) =
-  (L.map (true V.∷_) (gen-structs n))
-    L.++ (L.map (false V.∷_) (gen-structs n))
-
-gen-structs-test
-  : gen-structs 2
-  ≡ (true  V.∷ true  V.∷ V.[]) List.∷
-    (true  V.∷ false V.∷ V.[]) List.∷
-    (false V.∷ true  V.∷ V.[]) List.∷
-    (false V.∷ false V.∷ V.[]) List.∷ List.[]
-gen-structs-test = refl
-
-in-concat-comm
-  : ∀ {A : Set} {x : A} {ys zs : List A}
-  → x L.∈ zs L.++ ys
-  → x L.∈ ys L.++ zs
-in-concat-comm {ys = List.[]} {zs} prf = {!!}
-in-concat-comm {ys = y List.∷ ys} {zs} prf = {!!}
-
-in-concat
-  : ∀ {A : Set} {x : A} {ys zs : List A}
-  → (x L.∈ ys) ⊎ (x L.∈ zs)
-  → x L.∈ (ys L.++ zs)
-in-concat {ys = .(_ List.∷ _)} {zs} (inj₁ (L.here prf)) rewrite prf =
-  L.here refl
-in-concat {ys = .(_ List.∷ _)} {zs} (inj₁ (L.there prf)) =
-  L.there (in-concat (inj₁ prf))
-in-concat {ys = ys} {zs = zs} (inj₂ prf) = in-concat-comm ind-hyp
-  where
-    ind-hyp : _ L.∈ zs L.++ ys
-    ind-hyp = in-concat {ys = zs} {zs = ys} (inj₁ prf)
-{-
-in-concat {ys = ys} {.(_ List.∷ _)} (inj₂ (L.here prf)) rewrite prf =
-  {!L.here refl!}
-in-concat {ys = ys} {.(_ List.∷ _)} (inj₂ (L.there prf)) =
-  {!L.there (in-concat (inj₂ prf))!}
-  -}
-
-gen-structs-gens-all : ∀ {n} (v : Vec Bool n) → v L.∈ gen-structs n
-gen-structs-gens-all V.[] = L.here refl
-gen-structs-gens-all (false V.∷ xs) = {!!}
-  where
-    ind-hyp : xs L.∈ gen-structs _
-    ind-hyp = gen-structs-gens-all xs
-gen-structs-gens-all (true V.∷ xs) = {!!}
 
 {-
 _ : ∀ {n} → Table n ≡ (Vec Bool n → Bool)
@@ -649,7 +335,7 @@ table→formula
 table→formula {n} t = formula
   where
     structs : List (Vec Bool n)
-    structs = gen-structs n
+    structs = enum-vec-bool n
 
     filtered-structs : List (Vec Bool n)
     filtered-structs = L.boolFilter t structs
@@ -660,7 +346,7 @@ table→formula {n} t = formula
     formula : LP (finite-signature n)
     formula = L.foldr _∨′_ ⊥′ formulas
 
-table→formula-test
+_
   : table→formula
       {2}
       (table→fun-vec
@@ -679,7 +365,7 @@ table→formula-test
       ∨′ (((¬′ var 1 ≤-refl) ∧′ var 0 (≤-step (s≤s z≤n)))
       ∨′ ⊥′)
     )
-table→formula-test = refl
+_ = refl
 
 table→formula→table
   : ∀ {n} (t : Table n)
@@ -697,8 +383,7 @@ DNF-posts-theorem-on-tables t =
 
 strengthen-struct-weaken-prop
   : ∀ {n b A′} ψ
-  → strengthen-struct n b A′ * weaken-prop ψ
-  ≡ A′ * ψ
+  → strengthen-struct n b A′ * weaken-prop ψ ≡ A′ * ψ
 strengthen-struct-weaken-prop ⊥′ = refl
 strengthen-struct-weaken-prop {n} {_} {A′} (var p prf) with p <? n
 ... | yes prf′ = cong (A′ p) (<-irrelevant prf′ prf)
@@ -749,26 +434,6 @@ weaken-fun-disj n ψ₁ ψ₂ A′ b with n <? n
     A′ * ψ₁
   ∎
 ... | false = strengthen-struct-weaken-prop ψ₂
-
-{-
-get-truths
-  : ∀ {n}
-  → (t : Table n)
-  → (ψ : LP (finite-signature n))
-  → Σ[ v ∈ List (Vec Bool n) ]
-    All (λ V → vec→fin-struct V * ψ ≡ true) v
-  × ∀ A → A * ψ ≡ true → ∃! _≡_ λ i → fin-struct→vec A [ i ]=
-get-truths (constant false) ψ = {!!}
-get-truths (constant true) ψ = {!!}
-get-truths (branch t t₁) ψ = {!!}
--}
-
-get-truths
-  : ∀ {n}
-  → (t : Table n)
-  → (ψ : LP (finite-signature n))
-  → List (Vec Bool n)
-get-truths = {!!}
 
 posts-theorem-on-tables
   : ∀ {n}
@@ -868,18 +533,6 @@ posts-theorem
 posts-theorem n g with posts-theorem-on-tables (fun→table g)
 ... | ψ , prf = ψ , get-table-fun→table n ψ g prf
 
-{-
-data IsBasicFormula (_·_ : LP σ → LP σ → LP σ) : LP σ → Set₁ where
-  isBasic-lit : ∀ p prf → IsBasicFormula _·_ (var p prf)
-  isBasic-fun : ∀ p prf → IsBasicFormula _·_ ψ → IsBasicFormula _·_ (var p prf · ψ)
-
-IsBasicConjunction : LP σ → Set₁
-IsBasicConjunction = IsBasicFormula _∨′_
-
-IsBasicDisjunction : LP σ → Set₁
-IsBasicDisjunction = IsBasicFormula _∧′_
--}
-
 data IsLiteral {σ} : LP σ → Set₁ where
   isLit-var : ∀ {p prf} → IsLiteral (var p prf)
   isLit-neg-var : ∀ {p prf} → IsLiteral (¬′ var p prf)
@@ -913,12 +566,35 @@ module example-3-8-7 where
       (isDisj-lit isLit-var)
       (isCNF-disj (isDisj-lit isLit-neg-var))
 
-{-
-I need to prove Post's Theorem in a different way to prove this.
--}
+isDNF-table→formula
+  : ∀ {n} (t : Table n)
+  → IsDNF (table→formula (table→fun-vec t))
+isDNF-table→formula t = {!!}
 
-get-CNF : ∀ (ψ : LP σ) → Σ[ ϕ ∈ LP σ ] (IsCNF ϕ × ψ ~ ψ)
-get-CNF ψ = {!!}
+deMorgan : LP σ → LP σ
+deMorgan = {!!}
 
-get-DNF : ∀ (ψ : LP σ) → Σ[ ϕ ∈ LP σ ] (IsDNF ϕ × ψ ~ ψ)
-get-DNF ψ = {!!}
+module _ {n} (ψ : LP (finite-signature n)) where
+
+  formula→table→formula : table→formula (table→fun-vec (get-table ψ)) ~ ψ
+  formula→table→formula = {!!}
+
+  get-DNF : LP (finite-signature n)
+  get-DNF = proj₁ (DNF-posts-theorem-on-tables (get-table ψ))
+
+  isDNF-get-DNF : IsDNF get-DNF
+  isDNF-get-DNF = isDNF-table→formula (get-table ψ)
+
+  equiv-get-DNF : get-DNF ~ ψ
+  equiv-get-DNF = formula→table→formula
+
+module _ {n} (ψ : LP (finite-signature n)) where
+
+  get-CNF : LP (finite-signature n)
+  get-CNF = deMorgan (¬′ get-DNF (¬′ ψ))
+
+  isCNF-get-CNF : IsCNF get-CNF
+  isCNF-get-CNF = {!!}
+
+  equiv-get-CNF : get-CNF ~ ψ
+  equiv-get-CNF = {!!}
