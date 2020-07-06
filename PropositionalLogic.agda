@@ -86,8 +86,8 @@ f * (χ₁ ↔′ χ₂) = (f * χ₁) ⇔b (f * χ₂)
 {-
 Definition 3.5.7 (tautology)
 -}
-⊨ : (ϕ : LP σ) → Set
-⊨ ϕ = ∀ A → A * ϕ ≡ true
+IsTautology : (ϕ : LP σ) → Set
+IsTautology ϕ = ∀ A → A * ϕ ≡ true
 
 {-
 Lemma 3.6.1
@@ -100,7 +100,7 @@ module lemma-3-6-1 (ϕ ψ : LP σ) where
   II = ∀ A → A * ϕ ≡ A * ψ
 
   III : Set
-  III = ⊨ (ϕ ↔′ ψ)
+  III = IsTautology (ϕ ↔′ ψ)
 
   Lemma : Set
   Lemma = I ⇔ II × II ⇔ III
@@ -533,6 +533,10 @@ posts-theorem
 posts-theorem n g with posts-theorem-on-tables (fun→table g)
 ... | ψ , prf = ψ , get-table-fun→table n ψ g prf
 
+{-
+Definitions (3.8.6)
+-}
+
 data IsLiteral {σ} : LP σ → Set₁ where
   isLit-var : ∀ {p prf} → IsLiteral (var p prf)
   isLit-neg-var : ∀ {p prf} → IsLiteral (¬′ var p prf)
@@ -541,7 +545,7 @@ data IsBasicConjunction : LP σ → Set₁ where
   isConj-lit : IsLiteral ψ → IsBasicConjunction ψ
   isConj-conj : IsLiteral ψ → IsBasicConjunction ϕ → IsBasicConjunction (ψ ∧′ ϕ)
 
-data IsBasicDisjunction {σ} : LP σ → Set₁ where
+data IsBasicDisjunction : LP σ → Set₁ where
   isDisj-lit : IsLiteral ψ → IsBasicDisjunction ψ
   isDisj-disj : IsLiteral ψ → IsBasicDisjunction ϕ → IsBasicDisjunction (ψ ∨′ ϕ)
 

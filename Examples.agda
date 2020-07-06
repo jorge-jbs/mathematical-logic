@@ -19,6 +19,9 @@ open import Relation.Unary
 open import Relation.Nullary using (¬_; yes; no)
 
 open import PropositionalLogic funExt
+open import Signature
+open import Structure funExt
+open import Derivation funExt
 
 module example-3-5-4 where
   σ : Signature
